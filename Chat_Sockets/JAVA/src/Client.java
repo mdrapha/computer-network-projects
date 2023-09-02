@@ -8,14 +8,23 @@ public class Client {
             
             // Input and Output streams for communication
             BufferedReader serverIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true); 
             
-            System.out.println("Connected to server!\nWhat is your name? ");
+            System.out.print("System: Connected to server!\nSystem: What is your name? ");
             BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-            String name = stdIn.readLine();
+            String name = stdIn.readLine(); // Read the user's name from the console
+            
+            // Make sure the user enters a valid name
+            while(name == null || name.isEmpty()) {
+                System.out.println("System: Invalid name!");
+                System.out.print("System: What is your name? ");
 
-            // Send the user's name to the server
-            out.println(name);
+                name = stdIn.readLine();
+            }
+            
+            System.out.println("System: Welcome, " + name + "!");
+            
+            out.println(name); // Send the user's name to the server
 
             // Create a thread to read messages from the server
             Thread serverThread = new Thread(() -> {
@@ -26,34 +35,58 @@ public class Client {
                             // Server has closed the connection
                             break;
                         }
+                        
                         System.out.println(serverResponse);
                     }
-                // Se a excessão for de socket close, apenas avisar que o chat foi encerrado, outras excessões devem ser mostradas o stack trace    
+
+                    if(!socket.isClosed()){
+                        socket.close();
+                    }
                 } 
                 catch (SocketException e) {
-                    System.out.println("Chat closed!");
+                    /* Catch SocketException when the server closes the connection
+                       This is not an error, so we don't need to print the stack trace */
+                    
                 }
                 catch (IOException e) {
-                    e.printStackTrace();
+                    System.out.println("System: An error happened while reading from the server!");
+                }
+                finally{
+                    System.out.println("System: Chat closed!");
+                    System.exit(0);
                 }
             });
             serverThread.start();
 
             // Read and send user messages to the server
             while (true) {
+                // See if the server is still connected
+                if (socket.isClosed()) {
+                    System.out.println("System: Chat closed!");
+                    break;
+                }
+
                 String userMessage = stdIn.readLine();
                 if (userMessage == null || userMessage.equalsIgnoreCase("/exit")) {
                     // User wants to exit
-                    System.out.println("Closing connection...");
+                    System.out.println("System: Closing connection...");
                     break;
                 }
+
                 out.println(userMessage);
             }
 
             // Close the socket
-            socket.close();
+            if(!socket.isClosed()){
+                socket.close();
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
+            System.out.println("System: An error happened while connecting to the server!");
+            System.out.println("System: Make sure the server is running and try again.");
+        }
+        finally{
+            System.exit(0);
         }
     }
 }
