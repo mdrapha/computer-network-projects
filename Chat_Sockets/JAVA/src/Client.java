@@ -38,8 +38,6 @@ public class Client {
                     String userInput = stdin.readLine();
                     out.println(userInput);
                 }
-            } catch (SocketException e) { // Catch if the socket is closed 
-                System.out.println("Connection closed by the server.");
             } catch (IOException e) {
                 e.printStackTrace();
             } finally{
