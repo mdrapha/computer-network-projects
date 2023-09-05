@@ -1,235 +1,142 @@
 import java.io.*;
 import java.net.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class Server {
-    private static final int PORT = 49165;
-    // Map to store client usernames and their corresponding output streams
-    private static Map<String, PrintWriter> clientStreams = new HashMap<>();
-    private static Map<String, Socket> clientSockets = new HashMap<>();
-    private static ServerSocket serverSocket;
-
+    private static Map<String, PrintWriter> clientMap = new HashMap<>();
+    private static Map<String, Boolean> mutedUsers = new HashMap<>();
+    private static Set<String> bannedUsers = new HashSet<>();
+    
     public static void main(String[] args) {
+        int port = 45678; // Porta do servidor
         
-        // Create a server socket
-        try {
-            serverSocket = new ServerSocket(PORT);
-            System.out.println("Server started on port " + PORT);
-
-            // Input stream for server commands
-            BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-
-            // Create a thread to handle server commands
-            Thread serverHandleThread = new Thread(new ServerHandle(stdIn));
-            serverHandleThread.start();
-        }
-        catch (IOException e) {
-            System.out.println("System: An error happened while starting the server!");
-            //e.printStackTrace();
-            return;
-        }        
-        
-        Socket socket = null;
-        // Accept client connections
-        try {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Servidor de chat iniciado na porta " + port);
+            
             while (true) {
-                socket = serverSocket.accept();
-
-                System.out.println("Client connected: " + socket.getInetAddress().getHostAddress());
-                
-                // Input and Output streams for communication
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-
-                // Read the client's username
-                String username = in.readLine();
-                if (username != null) {
-                    synchronized (clientStreams) {
-                        // Check if the username is already taken
-                        if (clientStreams.containsKey(username)) {
-                            System.out.println("System: Username already taken!");
-                            out.println("System: Username already taken!");
-                            socket.close();
-                            continue;
-                        }
-
-                        clientSockets.put(username, socket); // Add the client's socket to the map
-                        clientStreams.put(username, out); // Add the client's output stream to the map
-
-                        for (Map.Entry<String, PrintWriter> entry : clientStreams.entrySet()) {
-                            if (!entry.getKey().equals(username)) {
-                                PrintWriter writer = entry.getValue();
-                                writer.println("System: " + username + " connected!");
-                            }
-                        }
-                    }
-                    
-                    // Create a new thread to handle client communication
-                    ClientHandler clientHandler = new ClientHandler(socket, in, username);
-                    Thread clientThread = new Thread(clientHandler);
-                    clientThread.start();
-                }
+                new ClientHandler(serverSocket.accept()).start();
             }
-        } catch (SocketException e) {
-            // Catch SocketException when the server closes the connection
-            System.out.println("Application closed!");
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
-    // Thread to handle client communication
-    private static class ClientHandler implements Runnable {
-        private Socket socket; // Client socket
-        private BufferedReader in; // Input stream
-        private String username; // Client username
-
-        public ClientHandler(Socket socket, BufferedReader in, String username) {
-            this.socket = socket;
-            this.in = in;
-            this.username = username;
-        }
-
-        @Override
-        public void run() {
-            try {
-                String clientMessage;
-
-                while ((clientMessage = in.readLine()) != null) {
-                    System.out.println(username + " said: " + clientMessage);
-
-                    // Send the received message to all clients except the sender
-                    synchronized (clientStreams) {
-                        // Iterate over the map and send the message to all clients except the sender
-                        for (Map.Entry<String, PrintWriter> entry : clientStreams.entrySet()) {
-                            if (!entry.getKey().equals(username)) {
-                                PrintWriter writer = entry.getValue();
-                                writer.println(username + " said: " + clientMessage);
-                            }
-                        }
-                    }
-                }
-            } catch (SocketException e) {
-                // Catch SocketException when the server closes the connection
-                return; // Stop the thread
-            } catch (IOException e) {
-                e.printStackTrace();
-            } 
-
-            // Close the client socket and remove the client's output stream from the map
-            try {
-                if(!socket.isClosed()){
-                    socket.close();
-                }   
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            // Remove the client's output stream from the map
-            synchronized (clientStreams) {
-                clientStreams.remove(username);
-            }
-            
-            // Notify all clients that the user has disconnected
-            synchronized (clientStreams) {
-                for (Map.Entry<String, PrintWriter> entry : clientStreams.entrySet()) {
-                    PrintWriter writer = entry.getValue();
-                    writer.println("System: " + username + " disconnected!");
-                }
-            }
-
-            System.out.println("Client disconnected: " + username);
-            
-        }
-    }
-
-    private static class ServerHandle implements Runnable {
-        private BufferedReader in;
-
-        public ServerHandle(BufferedReader in) {
-            this.in = in;
-        }
-
-        @Override
-        public void run() {
-            try {
-                String serverMessage;
-                while ((serverMessage = this.in.readLine()) != null) {
-                    if(serverMessage.equalsIgnoreCase("/exit")) {
-                        this.closeSockets(); // Close all client sockets and the server socket
-                        break;  
-                    }
-                    else if(serverMessage.equalsIgnoreCase("/list")) {
-                        synchronized (clientStreams) {
-                            System.out.println("Server: Connected clients:");
-                            for (Map.Entry<String, PrintWriter> entry : clientStreams.entrySet()) {
-                                System.out.println(entry.getKey());
-                            }
-                        }
-                    }
-                    else if(serverMessage.equalsIgnoreCase("/kick")){
-                        System.out.println("Server: Who do you want to kick?");
-                        String kick = this.in.readLine();
-                        synchronized (clientSockets) {
-                            if(clientSockets.containsKey(kick)){
-                                Socket socket = clientSockets.get(kick);
-                                socket.close();
-                                clientSockets.remove(kick);
-                                clientStreams.remove(kick);
-                                System.out.println("Server: " + kick + " has been kicked!");
-                            }
-                            else{
-                                System.out.println("Server: " + kick + " is not connected!");
-                            }
-                        }
-                    }
-                    else if(serverMessage.equalsIgnoreCase("/help")) {
-                        System.out.println("Server: Commands:");
-                        System.out.println("/list - List all connected clients");
-                        System.out.println("/exit - Close the server");
-                        System.out.println("/kick - Kick a client");
-                    }
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
     
-        private void closeSockets() {
-            System.out.println("Server closing connection...");
+    private static class ClientHandler extends Thread {
+        private Socket socket;
+        private PrintWriter out;
+        private BufferedReader in;
+        private String username;
 
-            // Close all client sockets
-            synchronized (clientStreams) {
-                // Iterate over the map and send the message to all clients that the server is closing
-                for (Map.Entry<String, PrintWriter> entry : clientStreams.entrySet()) {
-                    PrintWriter writer = entry.getValue();
-                    writer.println("System: Server is making a shutdown!");
-                    writer.close();
-                }
-                // Close all client sockets
-                for (Map.Entry<String, Socket> entry : clientSockets.entrySet()) {
-                    Socket socket = entry.getValue();
-                    try {
-                        socket.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+        public ClientHandler(Socket socket) {
+            this.socket = socket;
+        }
+
+        public void run() {
+            try {
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                out = new PrintWriter(socket.getOutputStream(), true);
+                
+                // Autenticação do usuário
+                out.printf("Bem-vindo ao chat. Usuários online: %d\n", clientMap.size());
+                out.println("Digite seu nome de usuário:");
+                
+                username = in.readLine();
+                if (username == null || username.isEmpty() || clientMap.containsKey(username) || bannedUsers.contains(username)) {
+                    out.println("Nome de usuário inválido. Conexão encerrada.");
+                    return;
                 }
                 
-                System.out.println("All clients disconnected!");
-
-                // Close the server socket
+                out.println("Digite sua senha:");
+                String password = in.readLine();
+                // Verifique a senha aqui (você pode adicionar uma lógica de armazenamento seguro de senhas)
+                
+                synchronized (clientMap) {
+                    clientMap.put(username, out);
+                }
+                
+                out.println("Bem-vindo, " + username + "!");
+                broadcast(username + " entrou no chat.");
+                
+                String input;
+                while ((input = in.readLine()) != null) {
+                    if (input.startsWith("/mute")) {
+                        String[] tokens = input.split(" ");
+                        if (tokens.length == 2) {
+                            String userToMute = tokens[1];
+                            mutedUsers.put(userToMute, true);
+                            out.println("Você mutou " + userToMute + ".");
+                        }
+                    } else if (input.startsWith("/ban")) {
+                        String[] tokens = input.split(" ");
+                        if (tokens.length == 2) {
+                            String userToBan = tokens[1];
+                            bannedUsers.add(userToBan);
+                            out.println("Você baniu " + userToBan + ".");
+                            broadcast(userToBan + " foi banido pelo administrador.");
+                            synchronized (clientMap) {
+                                PrintWriter bannedClient = clientMap.get(userToBan);
+                                if (bannedClient != null) {
+                                    bannedClient.println("Você foi banido do chat pelo administrador.");
+                                }
+                            }
+                        }
+                    } else if (input.startsWith("/pm")) {
+                        String[] tokens = input.split(" ", 3);
+                        if (tokens.length == 3) {
+                            String recipient = tokens[1];
+                            String message = tokens[2];
+                            sendPrivateMessage(username, recipient, message);
+                        }
+                    } else if (input.startsWith("/exit")){
+                        break; // Encerra a conexão com o cliente
+                    } else if (input.startsWith("/help")) {
+                        out.println("Comandos disponíveis:");
+                        out.println("/mute <usuário> - muta um usuário");
+                        out.println("/ban <usuário> - bane um usuário");
+                        out.println("/pm <usuário> <mensagem> - envia uma mensagem privada para um usuário");
+                        out.println("/exit - sai do chat");
+                    } else {
+                        if (!mutedUsers.containsKey(username)) {
+                            broadcast(username + ": " + input);
+                        } else {
+                            out.println("Você está mutado e não pode enviar mensagens.");
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
                 try {
-                    serverSocket.close();
+                    socket.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+                synchronized (clientMap) {
+                    clientMap.remove(username);
+                }
+                broadcast(username + " saiu do chat.");
             }
-            
-            System.out.println("Server closed successfully!");
+        }
+    }
+    
+    private static void broadcast(String message) {
+        synchronized (clientMap) {
+            for (PrintWriter client : clientMap.values()) {
+                client.println(message);
+            }
+        }
+    }
+    
+    private static void sendPrivateMessage(String sender, String recipient, String message) {
+        synchronized (clientMap) {
+            PrintWriter recipientWriter = clientMap.get(recipient);
+            PrintWriter senderWriter = clientMap.get(sender);
+            if (recipientWriter != null && senderWriter != null) {
+                recipientWriter.println("Mensagem privada de " + sender + ": " + message);
+                senderWriter.println("Mensagem privada para " + recipient + ": " + message);
+            } else {
+                senderWriter.println("Usuário não encontrado ou offline.");
+            }
         }
     }
 }
