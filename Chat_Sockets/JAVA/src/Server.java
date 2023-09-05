@@ -8,11 +8,12 @@ public class Server {
     private static Set<String> bannedUsers = new HashSet<>();
     
     public static void main(String[] args) {
-        int port = 45678; // Porta do servidor
+        int port = 45678; // default port for the chat server
         
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Servidor de chat iniciado na porta " + port);
-            
+
+            // Accept new connections and start a new thread for each one
             while (true) {
                 new ClientHandler(serverSocket.accept()).start();
             }
@@ -48,7 +49,7 @@ public class Server {
                 
                 out.println("Digite sua senha:");
                 String password = in.readLine();
-                // Verifique a senha aqui (você pode adicionar uma lógica de armazenamento seguro de senhas)
+                // TODO: check if the password is correct
                 
                 synchronized (clientMap) {
                     clientMap.put(username, out);
@@ -88,7 +89,8 @@ public class Server {
                             sendPrivateMessage(username, recipient, message);
                         }
                     } else if (input.startsWith("/exit")){
-                        break; // Encerra a conexão com o cliente
+                        break; /* This break is important because you go directly to the finally 
+                                block and close the user socket. */
                     } else if (input.startsWith("/help")) {
                         out.println("Comandos disponíveis:");
                         out.println("/mute <usuário> - muta um usuário");
@@ -96,6 +98,7 @@ public class Server {
                         out.println("/pm <usuário> <mensagem> - envia uma mensagem privada para um usuário");
                         out.println("/exit - sai do chat");
                     } else {
+                        // Verify if the user is muted before broadcasting his message
                         if (!mutedUsers.containsKey(username)) {
                             broadcast(username + ": " + input);
                         } else {
