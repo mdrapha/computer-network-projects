@@ -59,13 +59,13 @@ public class Server {
                 }
                 
                 if (username.equals("admin")) {
-                    out.println("> SERVER: Digite a senha de administrador:");
+                    out.println("> SERVER: Digite a senha (3 tentativas):");
                     String adminPassword = in.readLine();
                     if (!adminPassword.equals("admin")) {
-                        out.println("> SERVER: Senha incorreta. Você tem mais 2 tentativas.");
+                        out.println("> SERVER: Senha incorreta (2 tentativas):");
                         adminPassword = in.readLine();
                         if (!adminPassword.equals("admin")) {
-                            out.println("> SERVER: Senha incorreta. Você tem mais 1 tentativa.");
+                            out.println("> SERVER: Senha incorreta (1 tentativa):");
                             adminPassword = in.readLine();
                             if (!adminPassword.equals("admin")) {
                                 out.println("> SERVER: Senha incorreta. Você foi desconectado.");
@@ -91,6 +91,13 @@ public class Server {
                                 String userToMute = tokens[1];
                                 mutedUsers.put(userToMute, true);
                                 out.println("> SERVER: usuario " + userToMute + " mutado.");
+
+                                synchronized (clientMap) {
+                                    PrintWriter mutedClient = clientMap.get(userToMute);
+                                    if (mutedClient != null) {
+                                        mutedClient.println("> SERVER: Você foi mutado pelo administrador.");
+                                    }
+                                }
                             }
                         } else {
                             out.println("> SERVER: Você não tem permissão para mutar usuários.");
@@ -102,6 +109,13 @@ public class Server {
                                 String userToUnmute = tokens[1];
                                 mutedUsers.remove(userToUnmute);
                                 out.println("> SERVER: usuario " + userToUnmute + " desmutado.");
+
+                                synchronized (clientMap) {
+                                    PrintWriter mutedClient = clientMap.get(userToUnmute);
+                                    if (mutedClient != null) {
+                                        mutedClient.println("> SERVER: Você foi desmutado pelo administrador.");
+                                    }
+                                }
                             }
                         } else {
                             out.println("> SERVER: Você não tem permissão para desmutar usuários.");
@@ -146,6 +160,7 @@ public class Server {
                             out.println("\n> SERVER: Comandos disponíveis");
                             out.println("/pm <usuário> <mensagem>");
                             out.println("/mute <usuário>");
+                            out.println("/unmute <usuário>");
                             out.println("/kick <usuário>");
                             out.println("/ban <usuário>");
                             out.println("/exit\n");
@@ -155,11 +170,18 @@ public class Server {
                             out.println("/exit - sai do chat\n");
                         }
                     } else {
-                        // Verify if the user is muted before broadcasting his message
-                        if (!mutedUsers.containsKey(username)) {
-                            broadcast(username + ": " + input);
-                        } else {
-                            out.println("> SERVER: Você está mutado e não pode enviar mensagens.");
+                        // if message is empty dont broadcast
+                        if (input.isEmpty()) {
+                            continue;
+                        } else if (!mutedUsers.containsKey(username)) { // Verify if the user is muted before broadcasting his message
+
+                            if (username.equals("admin")) {
+                                broadcast("> ADMIN: " + input);
+                            } else {
+                                broadcast(username + ": " + input);
+                            }
+                        } else { // dont broadcast
+                            continue;
                         }
                     }
                 }
@@ -192,8 +214,8 @@ public class Server {
             PrintWriter recipientWriter = clientMap.get(recipient);
             PrintWriter senderWriter = clientMap.get(sender);
             if (recipientWriter != null && senderWriter != null) {
-                recipientWriter.println("PM (" + sender + "): " + message);
-                senderWriter.println("PM (" + recipient + "): " + message);
+                recipientWriter.println("> PM: (" + sender + "): " + message);
+                senderWriter.println("> PM: (" + recipient + "): " + message);
             } else {
                 senderWriter.println("> SERVER: Usuário não encontrado ou offline.");
             }
