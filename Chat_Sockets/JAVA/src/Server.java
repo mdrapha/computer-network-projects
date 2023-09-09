@@ -11,7 +11,7 @@ public class Server {
         int port = 45678; // default port for the chat server
         
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Servidor de chat iniciado na porta " + port);
+            System.out.println("> SYSTEM: Servidor de chat iniciado na porta " + port);
 
             // Accept new connections and start a new thread for each one
             while (true) {
@@ -38,26 +38,40 @@ public class Server {
                 out = new PrintWriter(socket.getOutputStream(), true);
                 
                 // Autenticação do usuário
-                out.printf("> Bem-vindo ao chat. Usuários online: %d\n", clientMap.size());
-                out.println("> Digite seu nome de usuário:");
+                out.printf("> SERVER: Bem-vindo ao chat. Usuários online: %d\n", clientMap.size());
+                // lista de usuarios
+                synchronized (clientMap) {
+                    for (String user : clientMap.keySet()) {
+                        out.println(user);
+                    }
+                }
+                out.println("\n> SERVER: Digite seu nome de usuário:");
                 
                 username = in.readLine();
-                if (username == null || username.isEmpty() || clientMap.containsKey(username)) {
-                    out.println("> Nome de usuário inválido. Conexão encerrada.");
-                    return;
+                while (username == null || username.isEmpty() || clientMap.containsKey(username)) {
+                    out.println("> SERVER: Nome de usuário inválido. Digite outro nome de usuário:");
+                    username = in.readLine();
                 }
                 if (bannedUsers.contains(username))
                 {
-                    out.println("> Você foi banido do chat.");
+                    out.println("> SERVER: Você foi banido do servidor por um administrador.");
                     return;
                 }
                 
                 if (username.equals("admin")) {
-                    out.println("> Digite a senha de administrador:");
+                    out.println("> SERVER: Digite a senha de administrador:");
                     String adminPassword = in.readLine();
                     if (!adminPassword.equals("admin")) {
-                        out.println("> Senha incorreta. Conexão encerrada.");
-                        return;
+                        out.println("> SERVER: Senha incorreta. Você tem mais 2 tentativas.");
+                        adminPassword = in.readLine();
+                        if (!adminPassword.equals("admin")) {
+                            out.println("> SERVER: Senha incorreta. Você tem mais 1 tentativa.");
+                            adminPassword = in.readLine();
+                            if (!adminPassword.equals("admin")) {
+                                out.println("> SERVER: Senha incorreta. Você foi desconectado.");
+                                return;
+                            }
+                        }
                     }
                 }
                 
@@ -65,8 +79,8 @@ public class Server {
                     clientMap.put(username, out);
                 }
                 
-                out.println("Bem-vindo, " + username + "!");
-                broadcast(username + " entrou no chat.");
+                out.println("> SERVER: Bem-vindo, " + username + "!");
+                broadcast("> SERVER: " + username + " entrou no chat.");
                 
                 String input;
                 while ((input = in.readLine()) != null) {
@@ -76,10 +90,10 @@ public class Server {
                             if (tokens.length == 2) {
                                 String userToMute = tokens[1];
                                 mutedUsers.put(userToMute, true);
-                                out.println("Você mutou " + userToMute + ".");
+                                out.println("> SERVER: usuario " + userToMute + " mutado.");
                             }
                         } else {
-                            out.println("Você não tem permissão para mutar usuários.");
+                            out.println("> SERVER: Você não tem permissão para mutar usuários.");
                         }
                     } else if (input.startsWith("/ban")) {
                         if(username.equals("admin")){
@@ -87,17 +101,17 @@ public class Server {
                             if (tokens.length == 2) {
                                 String userToBan = tokens[1];
                                 bannedUsers.add(userToBan);
-                                out.println("Você baniu " + userToBan + ".");
-                                broadcast(userToBan + " foi banido pelo administrador.");
+                                out.println("> SERVER: Você baniu " + userToBan + ".");
+                                broadcast("> SERVER: " + userToBan + " foi banido pelo administrador.");
                                 synchronized (clientMap) {
                                     PrintWriter bannedClient = clientMap.get(userToBan);
                                     if (bannedClient != null) {
-                                        bannedClient.println("Você foi banido do chat pelo administrador.");
+                                        bannedClient.println("> SERVER: Você foi banido do chat pelo administrador.");
                                     }
                                 }
                             }
                         } else {
-                            out.println("Você não tem permissão para banir usuários.");
+                            out.println("> SERVER: Você não tem permissão para banir usuários.");
                         }
                     } else if (input.startsWith("/pm")) {
                         String[] tokens = input.split(" ", 3);
@@ -111,14 +125,15 @@ public class Server {
                                 block and close the user socket. */
                     } else if (input.startsWith("/help")) {
                         if(username.equals("admin")) {
-                            out.println("\nComandos disponíveis:");
-                            out.println("/mute <usuário> - muta um usuário");
-                            out.println("/ban <usuário> - bane um usuário");
-                            out.println("/pm <usuário> <mensagem> - envia uma mensagem privada para um usuário");
-                            out.println("/exit - sai do chat\n");
+                            out.println("\n> SERVER: Comandos disponíveis");
+                            out.println("/pm <usuário> <mensagem>");
+                            out.println("/mute <usuário>");
+                            out.println("/kick <usuário>");
+                            out.println("/ban <usuário>");
+                            out.println("/exit\n");
                         } else {
                             out.println("\nComandos disponíveis:");
-                            out.println("/pm <usuário> <mensagem> - envia uma mensagem privada para um usuário");
+                            out.println("/pm <usuário> <mensagem>");
                             out.println("/exit - sai do chat\n");
                         }
                     } else {
@@ -126,7 +141,7 @@ public class Server {
                         if (!mutedUsers.containsKey(username)) {
                             broadcast(username + ": " + input);
                         } else {
-                            out.println("Você está mutado e não pode enviar mensagens.");
+                            out.println("> SERVER: Você está mutado e não pode enviar mensagens.");
                         }
                     }
                 }
@@ -141,7 +156,7 @@ public class Server {
                 synchronized (clientMap) {
                     clientMap.remove(username);
                 }
-                broadcast(username + " saiu do chat.");
+                broadcast("> SERVER: " + username + " saiu do chat.");
             }
         }
     }
@@ -159,7 +174,7 @@ public class Server {
             PrintWriter recipientWriter = clientMap.get(recipient);
             PrintWriter senderWriter = clientMap.get(sender);
             if (recipientWriter != null && senderWriter != null) {
-                recipientWriter.println("Mensagem privada de " + sender + ": " + message);
+                recipientWriter.println("PM (" + sender + ") " + sender + ": " + message);
                 senderWriter.println("Mensagem privada para " + recipient + ": " + message);
             } else {
                 senderWriter.println("Usuário não encontrado ou offline.");

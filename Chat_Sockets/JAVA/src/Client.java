@@ -25,7 +25,7 @@ public class Client {
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally{
-                    System.out.println("Connection closed.");
+                    System.out.println("> SYSTEM: Connection closed.");
                     System.exit(0);
                 }
 
@@ -41,12 +41,12 @@ public class Client {
             } catch (IOException e) {
                 e.printStackTrace();
             } finally{
-                System.out.println("Connection closed.");
+                System.out.println("> SYSTEM: Connection closed.");
                 System.exit(0);
             }
             
         } catch (IOException e) {
-            System.out.println("Erro ao conectar ao servidor: " + e.getMessage());
+            System.out.println("> SERVER: Erro ao conectar ao servidor: " + e.getMessage());
         }
     }
 }
