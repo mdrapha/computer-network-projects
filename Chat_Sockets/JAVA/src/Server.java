@@ -6,10 +6,11 @@ public class Server {
     private static Map<String, PrintWriter> clientMap = new HashMap<>();
     private static Map<String, Boolean> mutedUsers = new HashMap<>();
     private static Set<String> bannedUsers = new HashSet<>();
-    
+    private static Map<String, String> users = new HashMap<>();
+
     public static void main(String[] args) {
         int port = 45678; // default port for the chat server
-        
+
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("> SYSTEM: Servidor de chat iniciado na porta " + port);
 
@@ -21,7 +22,7 @@ public class Server {
             e.printStackTrace();
         }
     }
-    
+
     private static class ClientHandler extends Thread {
         private Socket socket;
         private PrintWriter out;
@@ -36,7 +37,7 @@ public class Server {
             try {
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 out = new PrintWriter(socket.getOutputStream(), true);
-                
+
                 // Autenticação do usuário
                 out.printf("> SERVER: Bem-vindo ao chat. Usuários online: %d\n", clientMap.size());
                 // lista de usuarios
@@ -46,18 +47,31 @@ public class Server {
                     }
                 }
                 out.println("\n> SERVER: Digite seu nome de usuário:");
-                
+
                 username = in.readLine();
+
+                if (users.containsKey(username)) {
+                    out.println("> SERVER: Digite sua senha:");
+                    String enteredPassword = in.readLine();
+                    if (!users.get(username).equals(enteredPassword)) {
+                        out.println("> SERVER: Senha incorreta. Você foi desconectado.");
+                        return;
+                    }
+                } else {
+                    out.println("> SERVER: Você é um novo usuário. Defina sua senha:");
+                    String newPassword = in.readLine();
+                    users.put(username, newPassword);
+                }
+
                 while (username == null || username.isEmpty() || clientMap.containsKey(username)) {
                     out.println("> SERVER: Nome de usuário inválido. Digite outro nome de usuário:");
                     username = in.readLine();
                 }
-                if (bannedUsers.contains(username))
-                {
+                if (bannedUsers.contains(username)) {
                     out.println("> SERVER: Você foi banido do servidor por um administrador.");
                     return;
                 }
-                
+
                 if (username.equals("admin")) {
                     out.println("> SERVER: Digite a senha (3 tentativas):");
                     String adminPassword = in.readLine();
@@ -74,18 +88,18 @@ public class Server {
                         }
                     }
                 }
-                
+
                 synchronized (clientMap) {
                     clientMap.put(username, out);
                 }
-                
+
                 out.println("> SERVER: Bem-vindo, " + username + "!");
                 broadcast("> SERVER: " + username + " entrou no chat.");
-                
+
                 String input;
                 while ((input = in.readLine()) != null) {
                     if (input.startsWith("/mute")) {
-                        if(username.equals("admin")) {
+                        if (username.equals("admin")) {
                             String[] tokens = input.split(" ");
                             if (tokens.length == 2) {
                                 String userToMute = tokens[1];
@@ -103,7 +117,7 @@ public class Server {
                             out.println("> SERVER: Você não tem permissão para mutar usuários.");
                         }
                     } else if (input.startsWith("/unmute")) {
-                        if(username.equals("admin")) {
+                        if (username.equals("admin")) {
                             String[] tokens = input.split(" ");
                             if (tokens.length == 2) {
                                 String userToUnmute = tokens[1];
@@ -121,14 +135,13 @@ public class Server {
                             out.println("> SERVER: Você não tem permissão para desmutar usuários.");
                         }
                     } else if (input.startsWith("/kick")) {
-                        if(username.equals("admin")) {
-                            //TODO implementar kick
+                        if (username.equals("admin")) {
+                            // TODO implementar kick
                         } else {
                             out.println("> SERVER: Você não tem permissão para kickar usuários.");
                         }
-                    } 
-                    else if (input.startsWith("/ban")) {
-                        if(username.equals("admin")){
+                    } else if (input.startsWith("/ban")) {
+                        if (username.equals("admin")) {
                             String[] tokens = input.split(" ");
                             if (tokens.length == 2) {
                                 String userToBan = tokens[1];
@@ -152,11 +165,13 @@ public class Server {
                             String message = tokens[2];
                             sendPrivateMessage(username, recipient, message);
                         }
-                    } else if (input.startsWith("/exit")){
-                        break; /* This break is important because you go directly to the finally 
-                                block and close the user socket. */
+                    } else if (input.startsWith("/exit")) {
+                        break; /*
+                                * This break is important because you go directly to the finally
+                                * block and close the user socket.
+                                */
                     } else if (input.startsWith("/help")) {
-                        if(username.equals("admin")) {
+                        if (username.equals("admin")) {
                             out.println("\n> SERVER: Comandos disponíveis");
                             out.println("/pm <usuário> <mensagem>");
                             out.println("/mute <usuário>");
@@ -173,7 +188,8 @@ public class Server {
                         // if message is empty dont broadcast
                         if (input.isEmpty()) {
                             continue;
-                        } else if (!mutedUsers.containsKey(username)) { // Verify if the user is muted before broadcasting his message
+                        } else if (!mutedUsers.containsKey(username)) { // Verify if the user is muted before
+                                                                        // broadcasting his message
 
                             if (username.equals("admin")) {
                                 broadcast("> ADMIN: " + input);
@@ -200,7 +216,7 @@ public class Server {
             }
         }
     }
-    
+
     private static void broadcast(String message) {
         synchronized (clientMap) {
             for (PrintWriter client : clientMap.values()) {
@@ -208,7 +224,7 @@ public class Server {
             }
         }
     }
-    
+
     private static void sendPrivateMessage(String sender, String recipient, String message) {
         synchronized (clientMap) {
             PrintWriter recipientWriter = clientMap.get(recipient);
