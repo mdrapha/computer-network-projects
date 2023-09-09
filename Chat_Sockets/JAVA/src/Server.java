@@ -38,6 +38,9 @@ public class Server {
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 out = new PrintWriter(socket.getOutputStream(), true);
 
+                // add admin user and password to the users map
+                users.put("admin", "admin");                
+
                 // Autenticação do usuário
                 out.printf("> SERVER: Bem-vindo ao chat. Usuários online: %d\n", clientMap.size());
                 // lista de usuarios
@@ -49,44 +52,35 @@ public class Server {
                 out.println("\n> SERVER: Digite seu nome de usuário:");
 
                 username = in.readLine();
-
-                if (users.containsKey(username)) {
-                    out.println("> SERVER: Digite sua senha:");
-                    String enteredPassword = in.readLine();
-                    if (!users.get(username).equals(enteredPassword)) {
-                        out.println("> SERVER: Senha incorreta. Você foi desconectado.");
-                        return;
-                    }
-                } else {
-                    out.println("> SERVER: Você é um novo usuário. Defina sua senha:");
-                    String newPassword = in.readLine();
-                    users.put(username, newPassword);
-                }
-
-                while (username == null || username.isEmpty() || clientMap.containsKey(username)) {
+                while (username == null || username.isEmpty()) {
                     out.println("> SERVER: Nome de usuário inválido. Digite outro nome de usuário:");
                     username = in.readLine();
                 }
+
                 if (bannedUsers.contains(username)) {
                     out.println("> SERVER: Você foi banido do servidor por um administrador.");
                     return;
                 }
 
-                if (username.equals("admin")) {
-                    out.println("> SERVER: Digite a senha (3 tentativas):");
-                    String adminPassword = in.readLine();
-                    if (!adminPassword.equals("admin")) {
-                        out.println("> SERVER: Senha incorreta (2 tentativas):");
-                        adminPassword = in.readLine();
-                        if (!adminPassword.equals("admin")) {
-                            out.println("> SERVER: Senha incorreta (1 tentativa):");
-                            adminPassword = in.readLine();
-                            if (!adminPassword.equals("admin")) {
+                if (users.containsKey(username)) {
+                    out.println("> SERVER: Digite sua senha (3 tentativas):");
+                    String enteredPassword = in.readLine();
+                    if (!users.get(username).equals(enteredPassword)) {
+                        out.println("> SERVER: Senha incorreta. (2 tentativas)");
+                        enteredPassword = in.readLine();
+                        if (!users.get(username).equals(enteredPassword)) {
+                            out.println("> SERVER: Senha incorreta. (1 tentativa)");
+                            enteredPassword = in.readLine();
+                            if (!users.get(username).equals(enteredPassword)) {
                                 out.println("> SERVER: Senha incorreta. Você foi desconectado.");
                                 return;
                             }
                         }
                     }
+                } else {
+                    out.println("> SERVER: Você é um novo usuário. Defina sua senha:");
+                    String newPassword = in.readLine();
+                    users.put(username, newPassword);
                 }
 
                 synchronized (clientMap) {
