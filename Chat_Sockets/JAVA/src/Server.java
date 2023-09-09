@@ -95,7 +95,25 @@ public class Server {
                         } else {
                             out.println("> SERVER: Você não tem permissão para mutar usuários.");
                         }
-                    } else if (input.startsWith("/ban")) {
+                    } else if (input.startsWith("/unmute")) {
+                        if(username.equals("admin")) {
+                            String[] tokens = input.split(" ");
+                            if (tokens.length == 2) {
+                                String userToUnmute = tokens[1];
+                                mutedUsers.remove(userToUnmute);
+                                out.println("> SERVER: usuario " + userToUnmute + " desmutado.");
+                            }
+                        } else {
+                            out.println("> SERVER: Você não tem permissão para desmutar usuários.");
+                        }
+                    } else if (input.startsWith("/kick")) {
+                        if(username.equals("admin")) {
+                            //TODO implementar kick
+                        } else {
+                            out.println("> SERVER: Você não tem permissão para kickar usuários.");
+                        }
+                    } 
+                    else if (input.startsWith("/ban")) {
                         if(username.equals("admin")){
                             String[] tokens = input.split(" ");
                             if (tokens.length == 2) {
@@ -174,10 +192,10 @@ public class Server {
             PrintWriter recipientWriter = clientMap.get(recipient);
             PrintWriter senderWriter = clientMap.get(sender);
             if (recipientWriter != null && senderWriter != null) {
-                recipientWriter.println("PM (" + sender + ") " + sender + ": " + message);
-                senderWriter.println("Mensagem privada para " + recipient + ": " + message);
+                recipientWriter.println("PM (" + sender + "): " + message);
+                senderWriter.println("PM (" + recipient + "): " + message);
             } else {
-                senderWriter.println("Usuário não encontrado ou offline.");
+                senderWriter.println("> SERVER: Usuário não encontrado ou offline.");
             }
         }
     }
