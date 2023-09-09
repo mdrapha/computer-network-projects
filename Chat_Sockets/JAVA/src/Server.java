@@ -38,18 +38,28 @@ public class Server {
                 out = new PrintWriter(socket.getOutputStream(), true);
                 
                 // Autenticação do usuário
-                out.printf("Bem-vindo ao chat. Usuários online: %d\n", clientMap.size());
-                out.println("Digite seu nome de usuário:");
+                out.printf("> Bem-vindo ao chat. Usuários online: %d\n", clientMap.size());
+                out.println("> Digite seu nome de usuário:");
                 
                 username = in.readLine();
-                if (username == null || username.isEmpty() || clientMap.containsKey(username) || bannedUsers.contains(username)) {
-                    out.println("Nome de usuário inválido. Conexão encerrada.");
+                if (username == null || username.isEmpty() || clientMap.containsKey(username)) {
+                    out.println("> Nome de usuário inválido. Conexão encerrada.");
+                    return;
+                }
+                if (bannedUsers.contains(username))
+                {
+                    out.println("> Você foi banido do chat.");
                     return;
                 }
                 
-                out.println("Digite sua senha:");
-                String password = in.readLine();
-                // TODO: check if the password is correct
+                if (username.equals("admin")) {
+                    out.println("> Digite a senha de administrador:");
+                    String adminPassword = in.readLine();
+                    if (!adminPassword.equals("admin")) {
+                        out.println("> Senha incorreta. Conexão encerrada.");
+                        return;
+                    }
+                }
                 
                 synchronized (clientMap) {
                     clientMap.put(username, out);
@@ -61,25 +71,33 @@ public class Server {
                 String input;
                 while ((input = in.readLine()) != null) {
                     if (input.startsWith("/mute")) {
-                        String[] tokens = input.split(" ");
-                        if (tokens.length == 2) {
-                            String userToMute = tokens[1];
-                            mutedUsers.put(userToMute, true);
-                            out.println("Você mutou " + userToMute + ".");
+                        if(username.equals("admin")) {
+                            String[] tokens = input.split(" ");
+                            if (tokens.length == 2) {
+                                String userToMute = tokens[1];
+                                mutedUsers.put(userToMute, true);
+                                out.println("Você mutou " + userToMute + ".");
+                            }
+                        } else {
+                            out.println("Você não tem permissão para mutar usuários.");
                         }
                     } else if (input.startsWith("/ban")) {
-                        String[] tokens = input.split(" ");
-                        if (tokens.length == 2) {
-                            String userToBan = tokens[1];
-                            bannedUsers.add(userToBan);
-                            out.println("Você baniu " + userToBan + ".");
-                            broadcast(userToBan + " foi banido pelo administrador.");
-                            synchronized (clientMap) {
-                                PrintWriter bannedClient = clientMap.get(userToBan);
-                                if (bannedClient != null) {
-                                    bannedClient.println("Você foi banido do chat pelo administrador.");
+                        if(username.equals("admin")){
+                            String[] tokens = input.split(" ");
+                            if (tokens.length == 2) {
+                                String userToBan = tokens[1];
+                                bannedUsers.add(userToBan);
+                                out.println("Você baniu " + userToBan + ".");
+                                broadcast(userToBan + " foi banido pelo administrador.");
+                                synchronized (clientMap) {
+                                    PrintWriter bannedClient = clientMap.get(userToBan);
+                                    if (bannedClient != null) {
+                                        bannedClient.println("Você foi banido do chat pelo administrador.");
+                                    }
                                 }
                             }
+                        } else {
+                            out.println("Você não tem permissão para banir usuários.");
                         }
                     } else if (input.startsWith("/pm")) {
                         String[] tokens = input.split(" ", 3);
@@ -92,11 +110,17 @@ public class Server {
                         break; /* This break is important because you go directly to the finally 
                                 block and close the user socket. */
                     } else if (input.startsWith("/help")) {
-                        out.println("Comandos disponíveis:");
-                        out.println("/mute <usuário> - muta um usuário");
-                        out.println("/ban <usuário> - bane um usuário");
-                        out.println("/pm <usuário> <mensagem> - envia uma mensagem privada para um usuário");
-                        out.println("/exit - sai do chat");
+                        if(username.equals("admin")) {
+                            out.println("\nComandos disponíveis:");
+                            out.println("/mute <usuário> - muta um usuário");
+                            out.println("/ban <usuário> - bane um usuário");
+                            out.println("/pm <usuário> <mensagem> - envia uma mensagem privada para um usuário");
+                            out.println("/exit - sai do chat\n");
+                        } else {
+                            out.println("\nComandos disponíveis:");
+                            out.println("/pm <usuário> <mensagem> - envia uma mensagem privada para um usuário");
+                            out.println("/exit - sai do chat\n");
+                        }
                     } else {
                         // Verify if the user is muted before broadcasting his message
                         if (!mutedUsers.containsKey(username)) {
