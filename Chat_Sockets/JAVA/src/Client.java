@@ -1,4 +1,12 @@
-// English only please
+/*  Client.java
+ *  This is the client side of the chat application.
+ *  It connects to the server and sends and receives messages.
+ * 
+ *  Authors:
+ *  Name: Eduardo Verissimo Faccio            RA: 148.859
+ *  Name: Marco Antonio Coral                 RA: 158.467
+ *  Name: Raphael Damasceno Rocha de Moraes   RA: 156.380
+ */
 
 import java.io.*;
 import java.net.*;

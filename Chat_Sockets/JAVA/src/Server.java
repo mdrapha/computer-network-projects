@@ -1,3 +1,17 @@
+/*  
+ *  Server.java
+ *  This is the server side of the chat application.
+ *  It accepts new connections and creates a new thread for each one.
+ *  More info was added to the Readme.md file.
+ * 
+ *  Authors:
+ *  Name: Eduardo Verissimo Faccio            RA: 148.859
+ *  Name: Marco Antonio Coral                 RA: 158.467
+ *  Name: Raphael Damasceno Rocha de Moraes   RA: 156.380
+ */
+
+
+
 import java.io.*;
 import java.net.*;
 import java.util.*;
