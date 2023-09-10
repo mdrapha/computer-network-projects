@@ -16,6 +16,22 @@ public class Client {
         String serverAddress = "localhost";
         int serverPort = 45678;
 
+        // If the user passed the server address and port as arguments, use them
+
+        try{
+            if (args.length == 2) {
+                serverAddress = args[0];
+                serverPort = Integer.parseInt(args[1]);
+            } else if ( args.length == 0) {
+                System.out.println("> CLIENT: Argumentos não passados. Usando valores padrões.");
+            } else {
+                System.out.println("> CLIENT: Argumentos inválidos. Usando valores padrões.");
+                System.out.println("> CLIENT: java Client <server_address> <server_port>");
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("> CLIENT: Número de porta inválido. Usando valor padrão.");
+        }
+        
         try (
             Socket socket = new Socket(serverAddress, serverPort);
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
