@@ -23,10 +23,22 @@ public class Server {
     private static Map<String, String> users = new HashMap<>();
 
     public static void main(String[] args) {
-        int port = 45678; // default port for the chat server
+
+        int port = 45678; // default port
+
+        // Check if the user passed a port as an argument 
+        if (args.length > 0) {
+            try {
+                port = Integer.parseInt(args[0]); // if yes, use it
+            } catch (NumberFormatException e) {
+                System.out.println("> SYSTEM: Porta inválida. Usando porta padrão: 45678");
+            }
+        }
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
+            // Print the server port and IP address
             System.out.println("> SYSTEM: Servidor de chat iniciado na porta " + port);
+            System.out.println("> SYSTEM: IP: " + InetAddress.getLocalHost().getHostAddress());
 
             // Accept new connections and start a new thread for each one
             while (true) {
@@ -141,7 +153,7 @@ public class Server {
                             }
                         } else {
                             out.println("> SERVER: Você não tem permissão para desmutar usuários.");
-                        }
+                        } 
                     } else if (input.startsWith("/kick")) {
                         if (username.equals("admin")) {
 
