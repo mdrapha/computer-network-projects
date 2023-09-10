@@ -34,12 +34,17 @@ This is a simple chat server implemented in Java. It allows users to connect, au
    javac Client.java
    ```
 
-4. Connect to the server using the client. The client can be run on the same machine as the server or on a different machine. The client can be run using the following command:
+4. Connect to the server using the client. The client can be run on the same machine as the server or on a different machine. The client can be run using the following commands:
+
+    ```bash
+    java Client 
+    ```
+    Or the client can be run on a different IP address and/or port:
 
     ```bash
     java Client <server_ip> <server_port>
     ```
-
+    
     For example, if the server is running on the same machine as the client, the command would be:
 
     ```bash
