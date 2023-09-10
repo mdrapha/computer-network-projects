@@ -130,7 +130,7 @@ public class Server {
                         }
                     } else if (input.startsWith("/kick")) {
                         if (username.equals("admin")) {
-                            
+
                             String[] tokens = input.split(" ");
                             if (tokens.length == 2) {
                                 String userToKick = tokens[1];
@@ -169,10 +169,15 @@ public class Server {
                                 broadcast("> SERVER: " + userToBan + " foi banido pelo administrador.");
                                 synchronized (clientMap) {
                                     PrintWriter bannedClient = clientMap.get(userToBan);
-                                    if (bannedClient != null) {
+                                    
+                                    if (!clientMap.containsKey(userToBan)) {
                                         bannedClient.println("> SERVER: Você foi banido do chat pelo administrador.");
+                                        bannedClient.close(); // Close input and output streams of the banned user
                                     }
                                 }
+                            }
+                            else{
+                                out.println("> SERVER: Comando inválido.");
                             }
                         } else {
                             out.println("> SERVER: Você não tem permissão para banir usuários.");
