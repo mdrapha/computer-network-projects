@@ -176,10 +176,11 @@ public class Server {
                                     PrintWriter kickedClient = clientMap.get(userToKick);
                                     if (kickedClient != null) {
                                         kickedClient.println("> SERVER: Você foi kickado do chat pelo administrador.");
+                          
+		                        // Close the socket of the kicked user
+		                        kickedClient.close();
                                     }
                                     
-                                    // Close the socket of the kicked user
-                                    kickedClient.close();
                                 }
                             }
                         } else {
@@ -196,7 +197,7 @@ public class Server {
                                 synchronized (clientMap) {
                                     PrintWriter bannedClient = clientMap.get(userToBan);
                                     
-                                    if (!clientMap.containsKey(userToBan)) {
+                                    if (clientMap.containsKey(userToBan)) {
                                         bannedClient.println("> SERVER: Você foi banido do chat pelo administrador.");
                                         bannedClient.close(); // Close input and output streams of the banned user
                                     }
@@ -251,6 +252,8 @@ public class Server {
                         }
                     }
                 }
+            } catch (SocketException e) {
+                System.out.println("> SERVER: " + username + " foi desconectado pelo administrador");
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
